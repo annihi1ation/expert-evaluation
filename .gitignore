@@ -1,0 +1,8 @@
+# 仅发布 index.html（+ README）到 GitHub Pages；其余为本地/参考文件
+serve.py
+Code.gs
+client_*/
+*.csv
+*.zip
+.DS_Store
+Expert Evaluation Form B (standalone).html
