@@ -12,7 +12,7 @@
 | `Code.gs` | Google Apps Script 后端（粘贴到与 Sheet 绑定的 Apps Script 项目）。 |
 | `README.md` | 本文件。 |
 
-数据流：`浏览器 (localhost) → Google Apps Script /exec → Google Sheet「Responses」`。
+数据流：`浏览器 (localhost) → Google Apps Script /exec → Google Sheet（按表单分标签：group1→「Form1」，group2→「Form2」）`。
 评分不经过本地，直接由浏览器发往 Google。
 
 ## 线上部署（GitHub Pages）
@@ -25,9 +25,17 @@
 | form_2 | `index.html` | `group2` | my_rag_v2 **vs vanilla_rag** | <https://annihi1ation.github.io/expert-evaluation/> |
 | form_1 | `form1.html` | `group1` | my_rag_v2 **vs kg_rag** | <https://annihi1ation.github.io/expert-evaluation/form1.html> |
 
-两个表单的评分按 `formGroup` 分桶写入同一个 Sheet（`group1` / `group2` 互不覆盖），后端 `Code.gs` 无需改动。
+两个表单共用同一个 `/exec` 端点，但后端 `Code.gs` 按 `formGroup` 把评分写入**不同的工作表标签**：
+`group1 → 「Form1」`、`group2 → 「Form2」`（两个表单不再混在同一张表里）。前端 `SHEETS_ENDPOINT`
+无需改动，只需（重新）部署一次新的 `Code.gs`（见下方「若需要（重新）部署」）。
 `form1.html` 由 `index.html` 派生：仅把每位 client 的基线一侧报告从 `*_a2/_b2`（vanilla_rag）替换为
 `*_a1/_b1`（kg_rag），并将 `formGroup` 改为 `group1`；其余（client 档案、被评报告、UI）逐字节保持不变。
+
+### 记录与邮箱绑定（一个邮箱 = 一份记录）
+每位专家的记录严格按**邮箱**隔离：本地缓存键为 `eval_v2::<formGroup>::<email>::<patientId>`，
+Sheet 侧按 `(group, email, patientId)` 去重覆盖。**切换邮箱会完全隔离记录**——登入/登出时会清空内存中的
+上一位专家的作答，换一个邮箱即得到全新、独立的一份记录；同一个邮箱（在任意设备）总是恢复它自己的记录，
+不同邮箱之间绝不串数据。（同一 Pages 站下 form1/form2 同源共享登录态，但按 `formGroup` 前缀分桶，互不干扰。）
 
 ## 快速开始
 
@@ -109,9 +117,18 @@ kill <进程号>       # 或： pkill -f serve.py
 前端里的 `this.SHEETS_ENDPOINT` 已经指向线上的 `/exec` 部署，`this.formGroup = 'group2'`。
 `Code.gs` 就是该端点应有的逻辑：
 
-- `doPost(e)`：解析 JSON，按 `group + email + patientId` **去重覆盖**写入 `Responses` 表。
-- `doGet(e)`：`?type=load&email=&patientId=&group=` 返回 `{payload:{...}}`，裸 GET 返回健康检查。
-- 表头：`ts, group, email, name, patientId, patientName, origLabel, progress, submitted, payload(JSON)`。
+- `doPost(e)`：解析 JSON，按 `group` 选表标签（`group1→Form1`、`group2→Form2`），在该标签内按
+  `email + patientId` **去重覆盖**写入。
+- `doGet(e)`：`?type=load&email=&patientId=&group=` 按同样规则从对应标签读取，返回 `{payload:{...}}`；裸 GET 返回健康检查。
+- 表头（每个标签相同）：`ts, group, email, name, patientId, patientName, origLabel, progress, submitted, payload(JSON)`。
+
+### 迁移旧数据（可选）
+如果此前评分都落在旧的合并表 `Responses` 里，部署新 `Code.gs` 后在 Apps Script 编辑器里
+手动运行 `migrateSplitFromResponses_`（顶部函数下拉选中 → 运行）：它把旧行按 `group` 分发到
+`Form1`/`Form2` 标签。迁移是**安全**的——全程持脚本锁（不与线上保存交叉写坏行）、采用「保留较新」
+策略（目标标签已有同键行且更新时不覆盖），因此**即使在切到新后端之后运行、或重复运行都不会用旧数据
+覆盖专家的新作答**；未知/空 `group` 的行会被跳过（返回值给出 migrated/kept/skipped 计数供核对）。
+核对无误后可自行删除旧的 `Responses` 表。
 
 ### 若需要（重新）部署 Code.gs —— 务必保持同一个 /exec URL
 
@@ -124,6 +141,9 @@ kill <进程号>       # 或： pkill -f serve.py
 
 > 想保留每次同步的完整历史（而非每人每 patient 一行）：把 `Code.gs` 里 `saveRecord_`
 > 的覆盖分支去掉，始终 `appendRow`；`findRowIndex_` 已是“取最近一条”，load 仍然正确。
+
+> **两个 io 链接一起上线**：`index.html`（form_2）与 `form1.html`（form_1）都在本仓库、同一个
+> GitHub Pages 站点。改动前端后推送 `main` 即同时更新两条链接；后端只需（重新）部署一次 `Code.gs`（同一 `/exec`）。
 
 ## 验证（端到端）
 
