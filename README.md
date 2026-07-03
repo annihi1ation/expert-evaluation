@@ -15,6 +15,20 @@
 数据流：`浏览器 (localhost) → Google Apps Script /exec → Google Sheet「Responses」`。
 评分不经过本地，直接由浏览器发往 Google。
 
+## 线上部署（GitHub Pages）
+
+两个表单已发布到同一个 GitHub Pages 站点，除「基线报告」内容与 `formGroup` 外完全相同；
+两者的 my_rag_v2 报告（被评系统）一致，只有对照的基线不同（见 `assignment_record.csv`）。
+
+| 表单 | 文件 | `formGroup` | 对比（Report A/B 之一为基线） | 链接 |
+|------|------|-------------|------------------------------|------|
+| form_2 | `index.html` | `group2` | my_rag_v2 **vs vanilla_rag** | <https://annihi1ation.github.io/expert-evaluation/> |
+| form_1 | `form1.html` | `group1` | my_rag_v2 **vs kg_rag** | <https://annihi1ation.github.io/expert-evaluation/form1.html> |
+
+两个表单的评分按 `formGroup` 分桶写入同一个 Sheet（`group1` / `group2` 互不覆盖），后端 `Code.gs` 无需改动。
+`form1.html` 由 `index.html` 派生：仅把每位 client 的基线一侧报告从 `*_a2/_b2`（vanilla_rag）替换为
+`*_a1/_b1`（kg_rag），并将 `formGroup` 改为 `group1`；其余（client 档案、被评报告、UI）逐字节保持不变。
+
 ## 快速开始
 
 ```bash
