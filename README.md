@@ -124,7 +124,7 @@ kill <进程号>       # 或： pkill -f serve.py
 
 ### 迁移旧数据（可选）
 如果此前评分都落在旧的合并表 `Responses` 里，部署新 `Code.gs` 后在 Apps Script 编辑器里
-手动运行 `migrateSplitFromResponses_`（顶部函数下拉选中 → 运行）：它把旧行按 `group` 分发到
+手动运行 `migrateSplitFromResponses`（顶部函数下拉选中 → 运行）：它把旧行按 `group` 分发到
 `Form1`/`Form2` 标签。迁移是**安全**的——全程持脚本锁（不与线上保存交叉写坏行）、采用「保留较新」
 策略（目标标签已有同键行且更新时不覆盖），因此**即使在切到新后端之后运行、或重复运行都不会用旧数据
 覆盖专家的新作答**；未知/空 `group` 的行会被跳过（返回值给出 migrated/kept/skipped 计数供核对）。
@@ -163,8 +163,9 @@ https://script.google.com/macros/s/AKfycbwFri9S3NCFu3U31uogEbgJJhcg1TIZf7EeviO63
      -d '{"type":"save","formGroup":"group2","expert":{"name":"T","email":"probe@example.com"},"patientId":"p1","patientName":"11","progress":"1/8","submitted":false,"payload":{"idx":0,"answers":{"d0":4},"comments":{},"flags":{},"flagText":{},"submitted":false},"ts":"2026-07-01T00:00:00Z"}' \
      "$EXEC"
    ```
-   然后到 Google Sheet 看 `Responses` 是否出现/更新了 `probe@example.com / p1` 这一行，
-   且 `payload` 含 `d0:4`；再跑第 1 步的 load，应返回该 payload（不再是 null）。
+   然后到 Google Sheet 看 `Form2` 标签（`group2` → `Form2`；若探 `group1` 则看 `Form1`）
+   是否出现/更新了 `probe@example.com / p1` 这一行，且 `payload` 含 `d0:4`；
+   再跑第 1 步的 load，应返回该 payload（不再是 null）。
 3. **界面验证**：`python3 serve.py` → 输入姓名/邮箱 → 选 patient → 打分 → 状态变 `Synced` → 表格出现对应行。
 4. **回填验证**：清掉浏览器 localStorage（或换个浏览器）后重进同一 patient，评分应从表格 rehydrate 回来。
 5. **清理**：删掉表格里 `probe@example.com` 的测试行。
